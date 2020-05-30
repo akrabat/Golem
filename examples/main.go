@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/jurgen-kluft/golem/exif"
+	"github.com/akrabat/golem/exif"
 	"os"
 )
 
@@ -21,4 +21,8 @@ func main() {
 	basicInfo := ImgMeta.GetBasicInfo(image)
 	fmt.Printf("Image: width:%v, height:%v\n", basicInfo.Width, basicInfo.Height)
 	fmt.Printf("Keywords: %v\n", basicInfo.Keywords)
+	fmt.Printf("DateCreated: %v\n", basicInfo.DateCreated)
+	fmt.Printf("Make: %v\n", basicInfo.Make)
+	fmt.Printf("Model: %v\n", basicInfo.Model)
+	fmt.Printf("ISO: %v\n", basicInfo.ISO)
 }
