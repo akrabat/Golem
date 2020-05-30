@@ -47,27 +47,32 @@ func GetBasicInfo(img Image) (info BasicInfo) {
 
 	keywords, err := img.ReadTagValue("IPTC", IptcTagApplication2Keywords)
 	if err == nil {
-		info.Keywords = keywords.([]string)
+		switch k := keywords.(type) {
+		case []string:
+			info.Keywords = k
+		case string:
+			info.Keywords = append(info.Keywords, k)
+		}
 	}
 
-	datetime, err := img.ReadTagValue("EXIF", ExifTagDateTimeOriginal)
-	if err == nil {
-		info.DateCreated = datetime.(string)
+	dateTimeOriginal, err := img.ReadTagValue("EXIF", ExifTagDateTimeOriginal)
+	if err == nil && dateTimeOriginal != nil {
+		info.DateCreated = dateTimeOriginal.(string)
 	}
 
 	make, err := img.ReadTagValue("EXIF", ExifTagMake)
-	if err == nil {
+	if err == nil && make != nil {
 		info.Make = make.(string)
 	}
 
 	model, err := img.ReadTagValue("EXIF", ExifTagModel)
-	if err == nil {
+	if err == nil && model != nil{
 		info.Model = model.(string)
 	}
 
-	shutterSpeed, err := img.ReadTagValue("EXIF", ExifTagExposureTime)
-	if err == nil {
-		s := shutterSpeed.(float64)
+	exposureTime, err := img.ReadTagValue("EXIF", ExifTagExposureTime)
+	if err == nil && exposureTime != nil {
+		s := exposureTime.(float64)
 		if s >= 1 {
 			info.ShutterSpeed = fmt.Sprintf("%.0f", s)
 		} else {
@@ -75,18 +80,19 @@ func GetBasicInfo(img Image) (info BasicInfo) {
 		}
 	} else {
 		// try the other one
-		shutterSpeed, err = img.ReadTagValue("EXIF", ExifTagShutterSpeedValue)
-		info.ShutterSpeed = fmt.Sprintf("1/%.0f", math.Exp2(shutterSpeed.(float64)))
+		shutterSpeed, err := img.ReadTagValue("EXIF", ExifTagShutterSpeedValue)
+		if err == nil && shutterSpeed != nil {
+			info.ShutterSpeed = fmt.Sprintf("1/%.0f", math.Exp2(shutterSpeed.(float64)))
+		}
 	}
 
 	aperture, err := img.ReadTagValue("EXIF", ExifTagFNumber)
-	if err == nil {
+	if err == nil && aperture != nil {
 		info.Aperture = fmt.Sprintf("%.1f", aperture.(float64))
 	}
 
-
 	iso, err := img.ReadTagValue("EXIF", ExifTagPhotographicSensitivity)
-	if err == nil {
+	if err == nil && iso != nil {
 		info.ISO = fmt.Sprintf("%v", iso)
 	}
 
