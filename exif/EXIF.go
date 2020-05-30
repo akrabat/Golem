@@ -142,7 +142,7 @@ func (t tEXIFAPP) ReadValue(tagID2Find uint16) (interface{}, error) {
 
 			//fmt.Printf("Checking tag:0x%X at index:%d\n", tagID, i)
 			if tagID == tagID2Find {
-				//fmt.Println("Found tag!")
+				//fmt.Printf("Found tag! (%v)\n", tagID)
 				return ifd.ReadValue(tag)
 			}
 
@@ -163,7 +163,7 @@ func (t tEXIFAPP) ReadValue(tagID2Find uint16) (interface{}, error) {
 		}
 	}
 
-	return int(1), nil
+	return nil, nil
 }
 
 type tExifIFD struct {
@@ -266,17 +266,29 @@ const (
 	cFLOAT64   = 0x000C
 )
 
-func (ifd tExifIFD) readValueFromOffset(offset uint32, typeID uint16, count uint32) (interface{}, error) {
-	//fmt.Printf("Reading EXIF value from offset. TypeId: %v \n", typeID)
+func (ifd tExifIFD) readValueFromOffset(valueorOffset uint32, typeID uint16, count uint32) (interface{}, error) {
+	//fmt.Printf("Reading EXIF value from valueorOffset. TypeId: %v, valueorOffset: %v, count: %v \n", typeID, valueorOffset, count)
 
-	// Add the tiffOffset to the offset to get the offset from the start of ifd.appblock
-	tiffOffset := uint32(10)
-	appblockOffset := tiffOffset + offset
+	// If valueOrOffset is an offset, then calculate appblockOffset as that's what we'll be reading.
+	/// We convert the offset in valueOrOffset to an appblockOffset by adding 10 (the tiffOffset data at the start).
+	appblockOffset := uint32(10) + valueorOffset
 
 	switch typeID {
 	case cARRAY | cASCII:
 		// This is a string
 		s := ""
+		if count <= 4 {
+			// valueorOffset contains the value
+			bs := make([]byte, 4)
+			binary.BigEndian.PutUint32(bs, valueorOffset)
+			var i uint32
+			for i = 0; i < count; i++ {
+				s = s + string(bs[i])
+			}
+			return s, nil
+		}
+
+		// As count > 4, valueOrOffset contains the offset to where the data is
 		for i := appblockOffset; i < (appblockOffset + count); i++ {
 			s = s + string(ifd.appblock[i])
 		}
@@ -292,8 +304,8 @@ func (ifd tExifIFD) readValueFromOffset(offset uint32, typeID uint16, count uint
 		}
 		return array, nil
 	case cARRAY | cULONG:
-		offset = ifd.offset + offset
-		block := ifd.appblock[offset : offset+count*4]
+		valueorOffset = ifd.offset + valueorOffset
+		block := ifd.appblock[valueorOffset : valueorOffset+count*4]
 		array := make([]uint32, count, count)
 		for i := uint32(0); i < count; i++ {
 			array[i] = ifd.endian.Uint32(block[i*4:])
@@ -333,7 +345,7 @@ func (ifd tExifIFD) readValueFromOffset(offset uint32, typeID uint16, count uint
 		denominator := int32(ifd.endian.Uint32(ifd.appblock[appblockOffset+4:]))
 		return float64(numerator) / float64(denominator), nil
 	}
-	return int(0), &exifError{"Reading EXIF tag value from offset failed"}
+	return int(0), &exifError{"Reading EXIF tag value from valueorOffset failed"}
 }
 
 func (ifd tExifIFD) ReadValue(tag tExifTag) (interface{}, error) {
