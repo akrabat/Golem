@@ -189,6 +189,8 @@ func (t tIPTCAPP) ReadValue(tagID2Find uint16) (interface{}, error) {
 	// Skip the IPTC APP13 header (18 bytes)
 	iptcHeader := tIPTCHeader{block: t.block[18:], endian: t.endian}
 
+	result := []string{}
+
 	// Valid header == 0x38 0x42 0x49 0x4d 0x04
 	for iptcHeader.HasValidHeader() {
 		// fmt.Printf("IPTC Header, name:%s, size:%v\n", iptcHeader.Name(), iptcHeader.RecordSize())
@@ -201,26 +203,26 @@ func (t tIPTCAPP) ReadValue(tagID2Find uint16) (interface{}, error) {
 				fieldID := uint16(recordReader.RecordNumber())<<8 | uint16(recordReader.DatasetNumber())
 				field, ok := aIPTCFields[fieldID]
 				if ok {
-					if field.fieldTypeID == IptcFieldTypeShort {
-						fmt.Printf("IPTC tag:%v, type:'short', value:%v\n", fieldID, recordReader.ReadShort())
-					} else if field.fieldTypeID == IptcFieldTypeString {
-						fmt.Printf("IPTC tag:%v, type:'string', value:%v\n", fieldID, recordReader.ReadString())
-					} else if field.fieldTypeID == IptcFieldTypeDate {
-						fmt.Printf("IPTC tag:%v, type:'date', value:%v\n", fieldID, recordReader.ReadDate())
-					} else if field.fieldTypeID == IptcFieldTypeTime {
-						fmt.Printf("IPTC tag:%v, type:'time', value:%v\n", fieldID, recordReader.ReadTime())
-					}
-					//if fieldID == tagID2Find {
-					//	if field.fieldTypeID == IptcFieldTypeShort {
-					//		return recordReader.ReadShort(), nil
-					//	} else if field.fieldTypeID == IptcFieldTypeString {
-					//		return recordReader.ReadString(), nil
-					//	} else if field.fieldTypeID == IptcFieldTypeDate {
-					//		return recordReader.ReadDate(), nil
-					//	} else if field.fieldTypeID == IptcFieldTypeTime {
-					//		return recordReader.ReadTime(), nil
-					//	}
+					//if field.fieldTypeID == IptcFieldTypeShort {
+					//	fmt.Printf("IPTC tag:%v, type:'short', value:%v\n", fieldID, recordReader.ReadShort())
+					//} else if field.fieldTypeID == IptcFieldTypeString {
+					//	fmt.Printf("IPTC tag:%v, type:'string', value:%v\n", fieldID, recordReader.ReadString())
+					//} else if field.fieldTypeID == IptcFieldTypeDate {
+					//	fmt.Printf("IPTC tag:%v, type:'date', value:%v\n", fieldID, recordReader.ReadDate())
+					//} else if field.fieldTypeID == IptcFieldTypeTime {
+					//	fmt.Printf("IPTC tag:%v, type:'time', value:%v\n", fieldID, recordReader.ReadTime())
 					//}
+					if fieldID == tagID2Find {
+						if field.fieldTypeID == IptcFieldTypeShort {
+							return recordReader.ReadShort(), nil
+						} else if field.fieldTypeID == IptcFieldTypeString {
+							result = append(result, recordReader.ReadString())
+						} else if field.fieldTypeID == IptcFieldTypeDate {
+							return recordReader.ReadDate(), nil
+						} else if field.fieldTypeID == IptcFieldTypeTime {
+							return recordReader.ReadTime(), nil
+						}
+					}
 				} else {
 					return nil, &exifError{fmt.Sprintf("IPTC record with id:0x%02X is not listed in our embedded map", fieldID)}
 				}
@@ -228,6 +230,16 @@ func (t tIPTCAPP) ReadValue(tagID2Find uint16) (interface{}, error) {
 			}
 		}
 		iptcHeader = iptcHeader.Next()
+	}
+
+	if len(result) == 1 {
+		// single element in slice, so just return it
+		return result[0], nil
+	}
+
+	if len(result) > 0 {
+		// return slice as more than one element
+		return result, nil
 	}
 
 	return int(0), &exifError{"Reading IPTC tag value failed"}
